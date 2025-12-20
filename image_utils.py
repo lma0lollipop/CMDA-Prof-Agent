@@ -7,8 +7,10 @@ for CMDAProfAgent.
 """
 
 from PIL import Image
-import pytesseract
 import io
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 
 
 def extract_text_from_image(uploaded_image) -> str:
