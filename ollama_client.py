@@ -1,6 +1,6 @@
 import requests
 
-OLLAMA_URL = "https://fireless-subcordately-coreen.ngrok-free.dev/api/chat"
+OLLAMA_URL = "https://museums-green-writings-pdas.trycloudflare.com/api/chat"
 MODEL_NAME = "deepseek-r1"
 
 
