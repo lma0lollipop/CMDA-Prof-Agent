@@ -1,25 +1,10 @@
-"""
-ollama_client.py
-
-Final stable Ollama client for CMDAProfAgent.
-Uses /api/chat (Windows-safe) and non-streaming calls
-for guaranteed output.
-"""
-
 import requests
 
-# IMPORTANT:
-# Ollama is already running on your system.
-# Do NOT start ollama serve again if port is busy.
 OLLAMA_URL = "https://fireless-subcordately-coreen.ngrok-free.dev/api/chat"
-MODEL_NAME = "deepseek-r1"   # Use EXACT name from `ollama list`
+MODEL_NAME = "deepseek-r1"
 
 
 def query_ollama(system_prompt: str, user_prompt: str) -> str:
-    """
-    Query Ollama using the chat API and return the full response text.
-    """
-
     payload = {
         "model": MODEL_NAME,
         "messages": [
@@ -33,14 +18,14 @@ def query_ollama(system_prompt: str, user_prompt: str) -> str:
         response = requests.post(
             OLLAMA_URL,
             json=payload,
+            headers={
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "true"
+            },
             timeout=600
         )
         response.raise_for_status()
-
-        data = response.json()
-
-        # Ollama chat response format
-        return data["message"]["content"].strip()
+        return response.json()["message"]["content"].strip()
 
     except Exception as e:
         return f"⚠️ Ollama API error: {e}"
