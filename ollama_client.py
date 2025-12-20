@@ -11,8 +11,7 @@ import requests
 # IMPORTANT:
 # Ollama is already running on your system.
 # Do NOT start ollama serve again if port is busy.
-
-OLLAMA_URL = "http://https://fireless-subcordately-coreen.ngrok-free.dev/api/chat"
+OLLAMA_URL = "https://fireless-subcordately-coreen.ngrok-free.dev/api/chat"
 MODEL_NAME = "deepseek-r1"   # Use EXACT name from `ollama list`
 
 
