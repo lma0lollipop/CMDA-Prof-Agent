@@ -20,7 +20,7 @@ def query_ollama(system_prompt: str, user_prompt: str) -> str:
             json=payload,
             headers={
                 "Content-Type": "application/json",
-                "ngrok-skip-browser-warning": "true"
+                "Host": "localhost"
             },
             timeout=600
         )
