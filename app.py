@@ -20,6 +20,13 @@ st.caption("AI Professor for Computational Methods and Data Analysis (CMDA)")
 
 
 # -------------------------------------------------
+# CONSTANTS (IMPORTANT FOR GROQ)
+# -------------------------------------------------
+MAX_CONTEXT_CHARS = 6000   # prevents Groq BadRequest
+MAX_DISPLAY_TURNS = 10
+
+
+# -------------------------------------------------
 # SESSION STATE
 # -------------------------------------------------
 if "conversation" not in st.session_state:
@@ -43,7 +50,7 @@ uploaded_image = st.sidebar.file_uploader(
 
 
 # -------------------------------------------------
-# EXTRACT CONTEXT
+# BUILD CONTEXT (PDF / IMAGE)
 # -------------------------------------------------
 context = ""
 
@@ -56,6 +63,10 @@ if uploaded_image:
     with st.sidebar.spinner("Reading Image..."):
         image_text = extract_text_from_image(uploaded_image)
         context += "\n\nIMAGE CONTENT START\n" + image_text + "\nIMAGE CONTENT END"
+
+# 🔒 HARD CONTEXT LIMIT (MANDATORY FOR GROQ)
+if len(context) > MAX_CONTEXT_CHARS:
+    context = context[:MAX_CONTEXT_CHARS]
 
 
 # -------------------------------------------------
@@ -72,11 +83,11 @@ submit = st.button("🧠 Generate Answer")
 
 
 # -------------------------------------------------
-# RESPONSE GENERATION
+# GENERATE RESPONSE
 # -------------------------------------------------
 if submit and user_question.strip():
 
-    with st.spinner("CMDAProfAgent is thinking..."):
+    with st.spinner("CMDAProfAgent is generating an exam-ready answer..."):
         prompts = generate_response(user_question, context)
 
         answer = query_llm(
@@ -88,6 +99,10 @@ if submit and user_question.strip():
         "question": user_question,
         "answer": answer
     })
+
+    # limit stored conversation
+    if len(st.session_state.conversation) > MAX_DISPLAY_TURNS:
+        st.session_state.conversation = st.session_state.conversation[-MAX_DISPLAY_TURNS:]
 
 
 # -------------------------------------------------
