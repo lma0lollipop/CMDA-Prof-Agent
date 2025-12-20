@@ -3,3 +3,4 @@ requests
 pdfplumber
 pillow
 pytesseract
+groq

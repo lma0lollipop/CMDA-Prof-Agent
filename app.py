@@ -1,24 +1,14 @@
-"""
-app.py
-
-Streamlit application for CMDAProfAgent.
-Supports:
-- Marks-based answer modes (5 / 8 / 15)
-- Stable non-streaming Ollama calls
-- PDF + classroom image reference
-"""
-
 import streamlit as st
 
 from agent import generate_response
 from pdf_utils import extract_text_from_pdf, build_pdf_context
-from image_utils import extract_text_from_image, build_image_context
-from ollama_client import query_ollama
+from image_utils import extract_text_from_image
+from groq_client import query_llm
 
-# =========================
+
+# -------------------------------------------------
 # PAGE CONFIG
-# =========================
-
+# -------------------------------------------------
 st.set_page_config(
     page_title="CMDAProfAgent",
     page_icon="📘",
@@ -26,130 +16,89 @@ st.set_page_config(
 )
 
 st.title("📘 CMDAProfAgent")
-st.subheader("Exam-Oriented • Marks-Aware • Reliable Output")
+st.caption("AI Professor for Computational Methods and Data Analysis (CMDA)")
 
-# =========================
+
+# -------------------------------------------------
 # SESSION STATE
-# =========================
+# -------------------------------------------------
+if "conversation" not in st.session_state:
+    st.session_state.conversation = []
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
 
-if "pdf_context" not in st.session_state:
-    st.session_state.pdf_context = ""
-
-if "pdf_uploaded" not in st.session_state:
-    st.session_state.pdf_uploaded = False
-
-# =========================
-# SIDEBAR: UPLOADS
-# =========================
-
+# -------------------------------------------------
+# SIDEBAR: FILE UPLOADS
+# -------------------------------------------------
 st.sidebar.header("📂 Upload Reference Material")
 
 uploaded_pdf = st.sidebar.file_uploader(
-    "Upload PDF (Notes / Book / Scanned)",
+    "Upload PDF (Lecture notes / Question paper)",
     type=["pdf"]
 )
 
-if uploaded_pdf:
-    pdf_text = extract_text_from_pdf(uploaded_pdf)
-    st.session_state.pdf_context = build_pdf_context(pdf_text)
-    st.session_state.pdf_uploaded = True
-    st.sidebar.success("PDF uploaded and loaded as reference.")
-
 uploaded_image = st.sidebar.file_uploader(
-    "Upload Classroom Notes / Question Image",
+    "Upload Image (Classroom notes / Numerical questions)",
     type=["png", "jpg", "jpeg"]
 )
 
-image_context = ""
+
+# -------------------------------------------------
+# EXTRACT CONTEXT
+# -------------------------------------------------
+context = ""
+
+if uploaded_pdf:
+    with st.sidebar.spinner("Reading PDF..."):
+        pdf_text = extract_text_from_pdf(uploaded_pdf)
+        context = build_pdf_context(pdf_text)
+
 if uploaded_image:
-    image_text = extract_text_from_image(uploaded_image)
-    image_context = build_image_context(image_text)
-    st.sidebar.success("Image uploaded and OCR processed.")
+    with st.sidebar.spinner("Reading Image..."):
+        image_text = extract_text_from_image(uploaded_image)
+        context += "\n\nIMAGE CONTENT START\n" + image_text + "\nIMAGE CONTENT END"
 
-# =========================
-# MARKS MODE SELECTOR
-# =========================
 
-st.markdown("### 🎯 Select Answer Length (Marks Mode)")
-
-marks_mode = st.selectbox(
-    "Choose exam answer type:",
-    ["Auto (Default)", "5 Marks", "8 Marks", "15 Marks"]
-)
-
-marks_instruction = ""
-if marks_mode != "Auto (Default)":
-    marks_instruction = f"Answer strictly as a {marks_mode} university examination question."
-
-# =========================
+# -------------------------------------------------
 # USER INPUT
-# =========================
-
-st.markdown("### 📝 Ask Your Question")
+# -------------------------------------------------
+st.subheader("📚 Ask a CMDA Question")
 
 user_question = st.text_area(
-    "Theory / Numerical / Follow-up question:",
+    "Enter your question (mention marks if needed, e.g., 5 marks / 8 marks / 15 marks):",
     height=120
 )
 
-submit = st.button("📖 Get Answer")
+submit = st.button("🧠 Generate Answer")
 
-# =========================
-# RESPONSE HANDLING
-# =========================
 
-if submit:
+# -------------------------------------------------
+# RESPONSE GENERATION
+# -------------------------------------------------
+if submit and user_question.strip():
 
-    if not user_question.strip() and st.session_state.pdf_uploaded:
-        user_question = "Explain the uploaded material in detail."
+    with st.spinner("CMDAProfAgent is thinking..."):
+        prompts = generate_response(user_question, context)
 
-    combined_context = ""
-
-    if st.session_state.pdf_uploaded:
-        combined_context += st.session_state.pdf_context
-
-    if image_context:
-        combined_context += image_context
-
-    # Inject marks instruction into question
-    final_question = user_question
-    if marks_instruction:
-        final_question = f"{marks_instruction}\n\n{user_question}"
-
-    response_payload = generate_response(
-        question=final_question,
-        context=combined_context
-    )
-
-    with st.spinner("CMDAProfAgent is generating the answer..."):
-        answer = query_ollama(
-            system_prompt=response_payload["system_prompt"],
-            user_prompt=response_payload["user_prompt"]
+        answer = query_llm(
+            prompts["system_prompt"],
+            prompts["user_prompt"]
         )
 
-    st.session_state.chat_history.append({
+    st.session_state.conversation.append({
         "question": user_question,
-        "answer": answer,
-        "marks_mode": marks_mode
+        "answer": answer
     })
 
-# =========================
-# DISPLAY CHAT HISTORY
-# =========================
 
-if st.session_state.chat_history:
-    st.markdown("## 📚 Conversation")
+# -------------------------------------------------
+# DISPLAY CONVERSATION
+# -------------------------------------------------
+st.divider()
+st.subheader("📖 Conversation")
 
-    for i, chat in enumerate(st.session_state.chat_history):
-        st.markdown(f"### ❓ Question {i+1}")
-        st.write(chat["question"])
+for i, turn in enumerate(st.session_state.conversation, start=1):
+    st.markdown(f"### ❓ Question {i}")
+    st.markdown(turn["question"])
 
-        if chat.get("marks_mode") and chat["marks_mode"] != "Auto (Default)":
-            st.markdown(f"**Marks Mode:** {chat['marks_mode']}")
-
-        st.markdown("### 📘 Answer")
-        st.write(chat["answer"])
-        st.markdown("---")
+    st.markdown("### 📘 Answer")
+    st.markdown(turn["answer"])
