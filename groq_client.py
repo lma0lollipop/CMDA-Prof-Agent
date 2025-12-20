@@ -3,7 +3,7 @@ import os
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-MODEL_NAME = "llama-3.1-70b-versatile"
+MODEL_NAME = "llama-3.1-8b-instant"
 MAX_TOKENS = 2048   # SAFE VALUE
 
 
