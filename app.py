@@ -20,10 +20,10 @@ st.caption("AI Professor for Computational Methods and Data Analysis (CMDA)")
 
 
 # -------------------------------------------------
-# CONSTANTS (IMPORTANT FOR GROQ)
+# CONSTANTS (GROQ SAFETY LIMITS)
 # -------------------------------------------------
-MAX_CONTEXT_CHARS = 6000   # prevents Groq BadRequest
-MAX_DISPLAY_TURNS = 10
+MAX_CONTEXT_CHARS = 6000     # Prevent Groq BadRequest
+MAX_DISPLAY_CHARS = 12000   # UI safety
 
 
 # -------------------------------------------------
@@ -34,7 +34,7 @@ if "conversation" not in st.session_state:
 
 
 # -------------------------------------------------
-# SIDEBAR: FILE UPLOADS
+# SIDEBAR: FILE UPLOADS (UI ONLY)
 # -------------------------------------------------
 st.sidebar.header("📂 Upload Reference Material")
 
@@ -50,21 +50,29 @@ uploaded_image = st.sidebar.file_uploader(
 
 
 # -------------------------------------------------
-# BUILD CONTEXT (PDF / IMAGE)
+# EXTRACT CONTEXT (PROCESSING IN MAIN AREA ONLY)
 # -------------------------------------------------
 context = ""
 
 if uploaded_pdf:
-    with st.sidebar.spinner("Reading PDF..."):
-        pdf_text = extract_text_from_pdf(uploaded_pdf)
-        context = build_pdf_context(pdf_text)
+    with st.spinner("📄 Reading PDF..."):
+        try:
+            pdf_text = extract_text_from_pdf(uploaded_pdf)
+            context = build_pdf_context(pdf_text)
+        except Exception as e:
+            context += f"\nPDF READ ERROR: {e}"
 
 if uploaded_image:
-    with st.sidebar.spinner("Reading Image..."):
-        image_text = extract_text_from_image(uploaded_image)
-        context += "\n\nIMAGE CONTENT START\n" + image_text + "\nIMAGE CONTENT END"
+    with st.spinner("🖼 Reading image..."):
+        try:
+            image_text = extract_text_from_image(uploaded_image)
+            context += "\n\nIMAGE CONTENT START\n"
+            context += image_text
+            context += "\nIMAGE CONTENT END"
+        except Exception as e:
+            context += f"\nIMAGE OCR ERROR: {e}"
 
-# 🔒 HARD CONTEXT LIMIT (MANDATORY FOR GROQ)
+# HARD LIMIT CONTEXT SIZE (CRITICAL FOR GROQ)
 if len(context) > MAX_CONTEXT_CHARS:
     context = context[:MAX_CONTEXT_CHARS]
 
@@ -75,7 +83,7 @@ if len(context) > MAX_CONTEXT_CHARS:
 st.subheader("📚 Ask a CMDA Question")
 
 user_question = st.text_area(
-    "Enter your question (mention marks if needed, e.g., 5 marks / 8 marks / 15 marks):",
+    "Enter your question (mention marks if needed: 5 / 8 / 15 marks):",
     height=120
 )
 
@@ -83,7 +91,7 @@ submit = st.button("🧠 Generate Answer")
 
 
 # -------------------------------------------------
-# GENERATE RESPONSE
+# RESPONSE GENERATION
 # -------------------------------------------------
 if submit and user_question.strip():
 
@@ -95,14 +103,14 @@ if submit and user_question.strip():
             prompts["user_prompt"]
         )
 
+    # Safety limit for UI rendering
+    if len(answer) > MAX_DISPLAY_CHARS:
+        answer = answer[:MAX_DISPLAY_CHARS] + "\n\n⚠️ Output truncated for display."
+
     st.session_state.conversation.append({
         "question": user_question,
         "answer": answer
     })
-
-    # limit stored conversation
-    if len(st.session_state.conversation) > MAX_DISPLAY_TURNS:
-        st.session_state.conversation = st.session_state.conversation[-MAX_DISPLAY_TURNS:]
 
 
 # -------------------------------------------------
